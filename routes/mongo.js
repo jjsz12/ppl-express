@@ -231,6 +231,63 @@ router.get('/locations', function(req, res, next) {
      locs.sort();
      res.send(locs);
    });
-})
+});
+
+router.get('/summary', async function(req, res, next) {
+  console.log(req.params);
+  const collection = this.db.collection('scores');
+
+  let players = 0;
+  let locations = 0;
+  let seasons = 0;
+  let scores = 0;
+  let groups = 0;
+  let games = 0;
+  await Promise.all([
+    collection.countDocuments().then((result) => {
+      scores = result;
+    }),
+    collection.distinct('season_id').then((result) => {
+      seasons = result.length;
+    }),
+    collection.distinct('player').then((result) => {
+      players = result.length;
+    }),
+    collection.distinct('location').then((result) => {
+      locations = result.length;
+    }),
+    collection.aggregate([
+      {'$group': {
+        '_id': {
+          'season': '$season_id',
+          'week': '$week_id', 
+          'group': '$group_id',
+        }
+      }}
+    ]).toArray().then((result) => {
+      groups = result.length
+    }),
+    collection.aggregate([
+      {'$group': {
+        '_id': {
+          'season': '$season_id',
+          'week': '$week_id', 
+          'group': '$group_id',
+          'game': '$game_id'
+        }
+      }}
+    ]).toArray().then((result) => {
+      games = result.length
+    })
+  ]);
+  res.send(`{
+    "seasons": ${seasons},
+    "players": ${players},
+    "locations": ${locations},
+    "groups": ${groups},
+    "games": ${games},
+    "scores": ${scores}
+  }`);
+});
 
 module.exports = router;
